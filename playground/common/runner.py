@@ -74,14 +74,14 @@ class BaseRunner(ABC):
         path = f"{self.output_dir}/{d}_{current_step}"
         print(f"Saving checkpoint (step: {current_step}): {path}")
         orbax_checkpointer.save(path, params, force=True, save_args=save_args)
-        onnx_export_path = f"{self.output_dir}/{d}_{current_step}.onnx"
-        export_onnx(
-            params,
-            self.action_size,
-            self.ppo_params,
-            self.obs_size,  # may not work
-            output_path=onnx_export_path
-        )
+        #onnx_export_path = f"{self.output_dir}/{d}_{current_step}.onnx"
+        #export_onnx(
+        #    params,
+        #    self.action_size,
+        #    self.ppo_params,
+        #    self.obs_size,  # may not work
+        #    output_path=onnx_export_path
+        #)
 
     def train(self) -> None:
         self.ppo_params = locomotion_params.brax_ppo_config(
@@ -99,6 +99,7 @@ class BaseRunner(ABC):
         else:
             network_factory = ppo_networks.make_ppo_networks
         self.ppo_training_params["num_timesteps"] = self.num_timesteps
+        self.ppo_training_params["num_envs"] = 2048
         print(f"PPO params: {self.ppo_training_params}")
 
         train_fn = functools.partial(
