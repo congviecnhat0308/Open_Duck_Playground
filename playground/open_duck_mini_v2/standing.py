@@ -24,7 +24,6 @@ from mujoco.mjx._src import math
 import numpy as np
 
 from mujoco_playground._src import mjx_env
-from mujoco_playground._src.collision import geoms_colliding
 
 from . import constants
 from . import base as open_duck_mini_v2_base
@@ -49,6 +48,7 @@ def default_config() -> config_dict.ConfigDict:
         # episode_length=450,
         episode_length=1000,
         action_repeat=1,
+        impl="jax",
         action_scale=0.25,
         dof_vel_scale=0.05,
         history_len=0,
@@ -163,11 +163,6 @@ class Standing(open_duck_mini_v2_base.OpenDuckMiniV2Env):
         self._feet_site_id = np.array(
             [self._mj_model.site(name).id for name in constants.FEET_SITES]
         )
-        self._floor_geom_id = self._mj_model.geom("floor").id
-        self._feet_geom_id = np.array(
-            [self._mj_model.geom(name).id for name in constants.FEET_GEOMS]
-        )
-
         foot_linvel_sensor_adr = []
         for site in constants.FEET_SITES:
             sensor_id = self._mj_model.sensor(f"{site}_global_linvel").id
@@ -249,7 +244,15 @@ class Standing(open_duck_mini_v2_base.OpenDuckMiniV2Env):
         # print(f'DEBUG3 base qvel: {qvel}')
         ctrl = self.get_actuator_joints_qpos(qpos)
         # print(f'DEBUG4 ctrl: {ctrl}')
-        data = mjx_env.init(self.mjx_model, qpos=qpos, qvel=qvel, ctrl=ctrl)
+        data = mjx_env.make_data(
+            self.mj_model,
+            qpos=qpos,
+            qvel=qvel,
+            ctrl=ctrl,
+            impl=self.mjx_model.impl.value,
+        )
+        # Populate kinematics and sensor values before the first observation.
+        data = mjx.forward(self.mjx_model, data)
         rng, cmd_rng = jax.random.split(rng)
         cmd = self.sample_command(cmd_rng)
 
@@ -303,12 +306,7 @@ class Standing(open_duck_mini_v2_base.OpenDuckMiniV2Env):
                     metrics[f"cost/{k}"] = jp.zeros(())
         metrics["swing_peak"] = jp.zeros(())
 
-        contact = jp.array(
-            [
-                geoms_colliding(data, geom_id, self._floor_geom_id)
-                for geom_id in self._feet_geom_id
-            ]
-        )
+        contact = self.get_feet_contact(data)
         obs = self._get_obs(data, info, contact)
         reward, done = jp.zeros(2)
         return mjx_env.State(data, obs, reward, done, metrics, info)
@@ -381,12 +379,7 @@ class Standing(open_duck_mini_v2_base.OpenDuckMiniV2Env):
         data = mjx_env.step(self.mjx_model, state.data, motor_targets, self.n_substeps)
         state.info["motor_targets"] = motor_targets
 
-        contact = jp.array(
-            [
-                geoms_colliding(data, geom_id, self._floor_geom_id)
-                for geom_id in self._feet_geom_id
-            ]
-        )
+        contact = self.get_feet_contact(data)
         contact_filt = contact | state.info["last_contact"]
         first_contact = (state.info["feet_air_time"] > 0.0) * contact_filt
         state.info["feet_air_time"] += self.dt

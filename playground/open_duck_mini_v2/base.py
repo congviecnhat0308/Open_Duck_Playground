@@ -58,7 +58,11 @@ class OpenDuckMiniV2Env(mjx_env.MjxEnv):
         self._mj_model.vis.global_.offwidth = 3840
         self._mj_model.vis.global_.offheight = 2160
 
-        self._mjx_model = mjx.put_model(self._mj_model)
+        # MuJoCo Playground 0.2.0 supports selectable MJX implementations.
+        # Keep JAX as the initial migration backend; it is selected in the task config.
+        self._mjx_model = mjx.put_model(
+            self._mj_model, impl=self._config.impl
+        )
         self._xml_path = xml_path
         self.floating_base_name= [self._mj_model.jnt(k).name for k in range(0, self._mj_model.njnt) if self._mj_model.jnt(k).type == 0][0] #assuming only one floating object!
         self.actuator_names = [
@@ -270,6 +274,16 @@ class OpenDuckMiniV2Env(mjx_env.MjxEnv):
                 mjx_env.get_sensor_data(self.mj_model, data, sensor_name)
                 for sensor_name in constants.FEET_POS_SENSOR
             ]
+        )
+
+    def get_feet_contact(self, data: mjx.Data) -> jax.Array:
+        """Return [left_contact, right_contact] from MuJoCo contact sensors."""
+        return jp.array(
+            [
+                mjx_env.get_sensor_data(self.mj_model, data, sensor_name)[0] > 0.0
+                for sensor_name in constants.FEET_CONTACT_SENSORS
+            ],
+            dtype=bool,
         )
 
     # Accessors.

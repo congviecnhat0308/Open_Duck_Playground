@@ -79,6 +79,13 @@ FEET_GEOMS = LEFT_FEET_GEOMS + RIGHT_FEET_GEOMS
 
 FEET_POS_SENSOR = [f"{site}_pos" for site in FEET_SITES]
 
+# Contact sensors used by MuJoCo Playground >= 0.1.0.
+# These replace the old Python-side geoms_colliding(...) checks.
+FEET_CONTACT_SENSORS = [
+    "left_foot_floor_found",
+    "right_foot_floor_found",
+]
+
 ROOT_BODY = "trunk_assembly"
 
 GRAVITY_SENSOR = "upvector"

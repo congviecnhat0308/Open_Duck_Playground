@@ -1,0 +1,19 @@
+<mujoco>
+    <sensor>
+        <contact
+            name="left_foot_floor_found"
+            geom1="left_foot_bottom_tpu"
+            geom2="floor"
+            reduce="mindist"
+            num="1"
+            data="found"/>
+
+        <contact
+            name="right_foot_floor_found"
+            geom1="right_foot_bottom_tpu"
+            geom2="floor"
+            reduce="mindist"
+            num="1"
+            data="found"/>
+    </sensor>
+</mujoco>
